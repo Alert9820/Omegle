@@ -1,77 +1,74 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-
+// server.js
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const waitingQueue = [];
-const partners = new Map();
+const users = new Map();
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname + "/public")); // your HTML file inside 'public'
 
-io.on('connection', (socket) => {
-  console.log('🔌 User connected:', socket.id);
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
 
-  socket.on('ready', () => {
-    if (waitingQueue.length > 0) {
-      const peer = waitingQueue.shift();
-      partners.set(socket.id, peer.id);
-      partners.set(peer.id, socket.id);
-      socket.emit('startCall');
-      peer.emit('startCall');
+  socket.on("ready", () => {
+    let partner = null;
+    for (let [id, isAvailable] of users) {
+      if (isAvailable && id !== socket.id) {
+        partner = id;
+        break;
+      }
+    }
+
+    if (partner) {
+      users.set(partner, false);
+      users.set(socket.id, false);
+      socket.partner = partner;
+      io.to(partner).emit("startCall");
+      socket.emit("startCall");
     } else {
-      waitingQueue.push(socket);
+      users.set(socket.id, true);
     }
   });
 
-  socket.on('offer', (offer) => {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) io.to(partnerId).emit('offer', offer);
+  socket.on("offer", (data) => {
+    if (socket.partner) io.to(socket.partner).emit("offer", data);
   });
 
-  socket.on('answer', (answer) => {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) io.to(partnerId).emit('answer', answer);
+  socket.on("answer", (data) => {
+    if (socket.partner) io.to(socket.partner).emit("answer", data);
   });
 
-  socket.on('candidate', (candidate) => {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) io.to(partnerId).emit('candidate', candidate);
+  socket.on("candidate", (data) => {
+    if (socket.partner) io.to(socket.partner).emit("candidate", data);
   });
 
-  socket.on('message', (msg) => {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) io.to(partnerId).emit('message', msg);
+  socket.on("message", (msg) => {
+    if (socket.partner) io.to(socket.partner).emit("message", msg);
   });
 
-  socket.on('next', () => {
-    disconnectPartner(socket);
-    socket.emit('ready');
-  });
-
-  socket.on('disconnect', () => {
-    console.log('❌ Disconnected:', socket.id);
-    disconnectPartner(socket);
-
-    const index = waitingQueue.findIndex(s => s.id === socket.id);
-    if (index !== -1) waitingQueue.splice(index, 1);
-  });
-
-  function disconnectPartner(socket) {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) {
-      const partnerSocket = io.sockets.sockets.get(partnerId);
-      if (partnerSocket) partnerSocket.emit('partner-disconnected'); // ✅ Replaced 'disconnect'
-      partners.delete(partnerId);
-      partners.delete(socket.id);
+  socket.on("next", () => {
+    if (socket.partner) {
+      io.to(socket.partner).emit("partner-disconnected");
+      users.set(socket.partner, true);
+      users.set(socket.id, true);
+      socket.partner = null;
     }
-  }
+    socket.emit("ready");
+  });
+
+  socket.on("disconnect", () => {
+    if (socket.partner) {
+      io.to(socket.partner).emit("partner-disconnected");
+      users.set(socket.partner, true);
+    }
+    users.delete(socket.id);
+    console.log("Disconnected:", socket.id);
+  });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+server.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
 });
