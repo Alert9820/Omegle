@@ -3,213 +3,204 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Omegle Clone</title>
+  <title>Omegle Clone - Sunny</title>
   <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to right, #141e30, #243b55);
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+    body { display: flex; flex-direction: column; height: 100vh; background: linear-gradient(to right, #1f4037, #99f2c8); }
 
     .main {
       display: flex;
       flex: 1;
       flex-direction: row;
-      padding: 10px;
+      overflow: hidden;
     }
 
-    .videos, .chat {
+    .video-area, .chat-area {
       flex: 1;
-      padding: 10px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
-    .videos video {
-      width: 48%;
-      max-width: 100%;
-      border: 3px solid white;
+    video {
+      width: 90%;
+      max-width: 400px;
       border-radius: 12px;
-      background: black;
+      margin-bottom: 10px;
+      background: #000;
     }
 
     .controls {
-      margin: 10px 0;
-      text-align: center;
+      margin: 10px;
     }
 
     .controls button {
       margin: 5px;
-      padding: 10px 20px;
-      border: none;
+      padding: 10px 18px;
       border-radius: 20px;
-      background: #00c9ff;
-      color: #000;
-      font-weight: bold;
+      border: none;
+      background: #007bff;
+      color: white;
       cursor: pointer;
     }
 
-    .chat-box {
-      background: #ffffff20;
+    #messages {
+      flex: 1;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      color: white;
       border-radius: 10px;
-      height: 75%;
-      overflow-y: auto;
       padding: 10px;
+      overflow-y: auto;
       margin-bottom: 10px;
     }
 
-    .chat-box div {
-      margin: 5px 0;
-    }
-
-    .input-box {
+    #message-input {
       display: flex;
+      width: 100%;
     }
 
-    .input-box input {
+    #msgBox {
       flex: 1;
       padding: 10px;
-      border-radius: 8px 0 0 8px;
       border: none;
-      outline: none;
+      border-radius: 8px 0 0 8px;
     }
 
-    .input-box button {
-      padding: 10px;
+    #sendBtn {
+      padding: 10px 20px;
       border: none;
-      background: #00ff88;
-      color: #000;
+      background-color: #0f2027;
+      color: white;
       border-radius: 0 8px 8px 0;
       cursor: pointer;
     }
 
     @media (max-width: 768px) {
-      .main {
-        flex-direction: column;
-      }
-      .videos video {
-        width: 100%;
-        margin-bottom: 10px;
-      }
+      .main { flex-direction: column; }
     }
   </style>
 </head>
 <body>
-
-<div class="main">
-  <div class="videos">
-    <video id="localVideo" autoplay muted playsinline></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-
-    <div class="controls">
-      <button id="startBtn">Start</button>
-      <button id="nextBtn">Next</button>
-      <button id="micBtn">🎙️ Mic On</button>
+  <div class="main">
+    <div class="video-area">
+      <video id="localVideo" autoplay muted playsinline></video>
+      <video id="remoteVideo" autoplay playsinline></video>
+      <div class="controls">
+        <button id="startBtn">Start</button>
+        <button id="nextBtn">Next</button>
+        <button id="micBtn">🎤 Mic On</button>
+      </div>
+    </div>
+    <div class="chat-area">
+      <div id="messages"></div>
+      <div id="message-input">
+        <input type="text" id="msgBox" placeholder="Say something..." />
+        <button id="sendBtn">Send</button>
+      </div>
     </div>
   </div>
 
-  <div class="chat">
-    <div class="chat-box" id="messages"></div>
-    <div class="input-box">
-      <input type="text" id="msgBox" placeholder="Say something..." />
-      <button id="sendBtn">Send</button>
-    </div>
-  </div>
-</div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let localStream, peerConnection;
+    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let isMicOn = true;
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  const socket = io();
-  let localStream, peerConnection;
-  let isMicOn = true;
-  const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const startBtn = document.getElementById('startBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const micBtn = document.getElementById('micBtn');
+    const msgBox = document.getElementById('msgBox');
+    const sendBtn = document.getElementById('sendBtn');
+    const messages = document.getElementById('messages');
 
-  const localVideo = document.getElementById('localVideo');
-  const remoteVideo = document.getElementById('remoteVideo');
-  const startBtn = document.getElementById('startBtn');
-  const nextBtn = document.getElementById('nextBtn');
-  const micBtn = document.getElementById('micBtn');
-  const msgBox = document.getElementById('msgBox');
-  const sendBtn = document.getElementById('sendBtn');
-  const messages = document.getElementById('messages');
+    startBtn.onclick = async () => {
+      if (!localStream) {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        localVideo.srcObject = localStream;
+      }
+      socket.emit('ready');
+    };
 
-  startBtn.onclick = async () => {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localVideo.srcObject = localStream;
-    socket.emit('ready');
-  };
+    nextBtn.onclick = () => {
+      socket.emit('next');
+      cleanup();
+    };
 
-  nextBtn.onclick = () => {
-    socket.emit('next');
-    if (peerConnection) peerConnection.close();
-    remoteVideo.srcObject = null;
-    messages.innerHTML = '';
-  };
+    micBtn.onclick = () => {
+      if (!localStream) return;
+      isMicOn = !isMicOn;
+      localStream.getAudioTracks()[0].enabled = isMicOn;
+      micBtn.textContent = isMicOn ? '🎤 Mic On' : '🔇 Mic Off';
+    };
 
-  micBtn.onclick = () => {
-    if (!localStream) return;
-    isMicOn = !isMicOn;
-    localStream.getAudioTracks().forEach(t => t.enabled = isMicOn);
-    micBtn.textContent = isMicOn ? '🎙️ Mic On' : '🔇 Mic Off';
-  };
+    sendBtn.onclick = () => {
+      const msg = msgBox.value.trim();
+      if (msg) {
+        socket.emit('message', msg);
+        appendMsg('You', msg);
+        msgBox.value = '';
+      }
+    };
 
-  sendBtn.onclick = () => {
-    const msg = msgBox.value.trim();
-    if (msg) {
-      socket.emit('message', msg);
-      messages.innerHTML += `<div><b>You:</b> ${msg}</div>`;
-      msgBox.value = '';
+    socket.on('message', msg => appendMsg('Stranger', msg));
+
+    socket.on('startCall', async () => {
+      peerConnection = createPeerConnection();
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit('offer', offer);
+    });
+
+    socket.on('offer', async offer => {
+      peerConnection = createPeerConnection();
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.emit('answer', answer);
+    });
+
+    socket.on('answer', async answer => {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    });
+
+    socket.on('candidate', candidate => {
+      peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
+    socket.on('partner-disconnected', () => {
+      cleanup();
+    });
+
+    function appendMsg(sender, msg) {
+      messages.innerHTML += `<div><b>${sender}:</b> ${msg}</div>`;
       messages.scrollTop = messages.scrollHeight;
     }
-  };
 
-  socket.on('message', msg => {
-    messages.innerHTML += `<div><b>Stranger:</b> ${msg}</div>`;
-    messages.scrollTop = messages.scrollHeight;
-  });
+    function cleanup() {
+      if (peerConnection) peerConnection.close();
+      peerConnection = null;
+      remoteVideo.srcObject = null;
+      messages.innerHTML = '';
+    }
 
-  socket.on('startCall', async () => {
-    peerConnection = createPeer();
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    socket.emit('offer', offer);
-  });
-
-  socket.on('offer', async (offer) => {
-    peerConnection = createPeer();
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-    socket.emit('answer', answer);
-  });
-
-  socket.on('answer', answer => {
-    peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-  });
-
-  socket.on('candidate', candidate => {
-    peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-  });
-
-  socket.on('disconnect', () => {
-    if (peerConnection) peerConnection.close();
-    remoteVideo.srcObject = null;
-  });
-
-  function createPeer() {
-    const pc = new RTCPeerConnection(config);
-    pc.onicecandidate = (e) => {
-      if (e.candidate) socket.emit('candidate', e.candidate);
-    };
-    pc.ontrack = (e) => {
-      remoteVideo.srcObject = e.streams[0];
-    };
-    return pc;
-  }
-</script>
+    function createPeerConnection() {
+      const pc = new RTCPeerConnection(config);
+      pc.onicecandidate = (e) => {
+        if (e.candidate) socket.emit('candidate', e.candidate);
+      };
+      pc.ontrack = (e) => {
+        remoteVideo.srcObject = e.streams[0];
+      };
+      return pc;
+    }
+  </script>
 </body>
 </html>
