@@ -1,22 +1,7 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const { exec } = require('child_process');
-
-// 🛠 Auto-install required packages (only runs once if missing)
-exec('npm install express socket.io', (error, stdout, stderr) => {
-  if (error) {
-    console.error(`Auto-install error: ${error.message}`);
-    return;
-  }
-  if (stderr) {
-    console.error(`Auto-install stderr: ${stderr}`);
-    return;
-  }
-  console.log(`✅ Dependencies installed:\n${stdout}`);
-});
 
 const app = express();
 const server = http.createServer(app);
@@ -28,7 +13,7 @@ const partners = new Map();
 app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', (socket) => {
-  console.log('🔌 New user connected:', socket.id);
+  console.log('🔌 User connected:', socket.id);
 
   socket.on('ready', () => {
     if (waitingQueue.length > 0) {
@@ -64,13 +49,14 @@ io.on('connection', (socket) => {
 
   socket.on('next', () => {
     disconnectPartner(socket);
-    socket.emit('ready'); // Re-enter the queue
+    socket.emit('ready');
   });
 
   socket.on('disconnect', () => {
-    console.log('❌ User disconnected:', socket.id);
+    console.log('❌ Disconnected:', socket.id);
     disconnectPartner(socket);
-    const index = waitingQueue.indexOf(socket);
+
+    const index = waitingQueue.findIndex(s => s.id === socket.id);
     if (index !== -1) waitingQueue.splice(index, 1);
   });
 
@@ -78,7 +64,7 @@ io.on('connection', (socket) => {
     const partnerId = partners.get(socket.id);
     if (partnerId) {
       const partnerSocket = io.sockets.sockets.get(partnerId);
-      if (partnerSocket) partnerSocket.emit('disconnect');
+      if (partnerSocket) partnerSocket.emit('partner-disconnected'); // ✅ Replaced 'disconnect'
       partners.delete(partnerId);
       partners.delete(socket.id);
     }
@@ -87,5 +73,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log("Server running on http://localhost:" + PORT);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
