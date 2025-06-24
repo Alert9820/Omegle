@@ -1,224 +1,202 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sunny's Omegle</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: 'Poppins', sans-serif;
-    }
-    body {
-      margin: 0;
-      padding: 0;
-      background: rgba(255,255,255,0.2);
-      backdrop-filter: blur(15px);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
-    .container {
-      display: flex;
-      flex: 1;
-      flex-direction: row;
-      padding: 10px;
-    }
-    .video-area, .chat-area {
-      flex: 1;
-      padding: 10px;
-    }
-    .video-box {
-      display: flex;
-      justify-content: space-evenly;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    video {
-      width: 48%;
-      height: 200px;
-      border-radius: 15px;
-      background: black;
-    }
-    .chat-box {
-      height: 80%;
-      background: #ffffff30;
-      border-radius: 12px;
-      padding: 10px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      color: #000;
-    }
-    .chat-input {
-      display: flex;
-      margin-top: 10px;
-    }
-    .chat-input input {
-      flex: 1;
-      padding: 10px;
-      border-radius: 8px 0 0 8px;
-      border: none;
-    }
-    .chat-input button {
-      padding: 10px 20px;
-      border: none;
-      background-color: #007bff;
-      color: #fff;
-      border-radius: 0 8px 8px 0;
-      cursor: pointer;
-    }
-    .controls {
-      text-align: center;
-      margin: 10px 0;
-    }
-    .controls button {
-      margin: 0 10px;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 25px;
-      cursor: pointer;
-      background: #0f2027;
-      color: white;
-    }
-    .footer {
-      text-align: center;
-      padding: 10px;
-      font-size: 14px;
-      background: rgba(255,255,255,0.2);
-    }
-    .bubble {
-      background: #f0f0f0;
-      padding: 6px 10px;
-      border-radius: 10px;
-      max-width: 70%;
-    }
-    .you { align-self: flex-end; background: #d1e7dd; }
-    .stranger { align-self: flex-start; background: #f8d7da; }
-    @media (max-width: 768px) {
-      .container { flex-direction: column; }
-      video { width: 100%; height: 160px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="video-area">
-      <div class="video-box">
-        <video id="localVideo" autoplay muted playsinline></video>
-        <video id="remoteVideo" autoplay playsinline></video>
-      </div>
-      <div class="controls">
-        <button id="startBtn">Start</button>
-        <button id="nextBtn">Next</button>
-        <button id="micBtn">🎙️ Mic On</button>
-      </div>
-    </div>
-    <div class="chat-area">
-      <div class="chat-box" id="messages"></div>
-      <div class="chat-input">
-        <input type="text" id="msgBox" placeholder="Say something...">
-        <button id="sendBtn">Send</button>
-      </div>
-    </div>
-  </div>
-  <div class="footer">Made by Sunny • Omegle Clone 2025</div>
+<!-- index.html (Video + Text Chat Omegle Clone) -->  <!DOCTYPE html>  <html lang="en">  
+<head>  
+  <meta charset="UTF-8" />  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />  
+  <title>Omegle Clone - Video + Chat</title>  
+  <style>  
+    body {  
+      margin: 0;  
+      padding: 0;  
+      font-family: Arial, sans-serif;  
+      background: linear-gradient(to right, #1f4037, #99f2c8);  
+      display: flex;  
+      flex-direction: row;  
+      height: 100vh;  
+      overflow: hidden;  
+    }  #video-section {  
+  flex: 1;  
+  display: flex;  
+  flex-direction: column;  
+  justify-content: center;  
+  align-items: center;  
+  padding: 10px;  
+}  
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    const socket = io();
-    let localStream;
-    let peerConnection;
-    let isMicOn = true;
-    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+video {  
+  width: 90%;  
+  max-width: 400px;  
+  margin: 10px;  
+  border-radius: 12px;  
+  border: 3px solid #fff;  
+  background: #000;  
+}  
 
-    const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
-    const startBtn = document.getElementById('startBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const micBtn = document.getElementById('micBtn');
-    const msgBox = document.getElementById('msgBox');
-    const sendBtn = document.getElementById('sendBtn');
-    const messages = document.getElementById('messages');
+#chat-section {  
+  flex: 1;  
+  background: rgba(255, 255, 255, 0.1);  
+  backdrop-filter: blur(10px);  
+  display: flex;  
+  flex-direction: column;  
+  padding: 20px;  
+}  
 
-    startBtn.onclick = async () => {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localVideo.srcObject = localStream;
-      socket.emit('ready');
-    };
+#messages {  
+  flex: 1;  
+  overflow-y: auto;  
+  margin-bottom: 10px;  
+  padding: 10px;  
+  border: 2px solid white;  
+  border-radius: 10px;  
+  background-color: #ffffff10;  
+  color: #fff;  
+}  
 
-    nextBtn.onclick = () => {
-      socket.emit('next');
-      if (peerConnection) peerConnection.close();
-      remoteVideo.srcObject = null;
-      messages.innerHTML = '';
-    };
+#message-input {  
+  display: flex;  
+}  
 
-    micBtn.onclick = () => {
-      if (!localStream) return;
-      isMicOn = !isMicOn;
-      localStream.getAudioTracks()[0].enabled = isMicOn;
-      micBtn.textContent = isMicOn ? '🎙️ Mic On' : '🔇 Mic Off';
-    };
+#message-input input {  
+  flex: 1;  
+  padding: 10px;  
+  border: none;  
+  border-radius: 8px 0 0 8px;  
+  font-size: 16px;  
+}  
 
-    sendBtn.onclick = () => {
-      const msg = msgBox.value.trim();
-      if (msg) {
-        socket.emit('message', msg);
-        appendMessage(msg, 'you');
-        msgBox.value = '';
-      }
-    };
+#message-input button {  
+  padding: 10px 20px;  
+  border: none;  
+  background-color: #0f2027;  
+  color: white;  
+  border-radius: 0 8px 8px 0;  
+  cursor: pointer;  
+}  
 
-    function appendMessage(msg, sender) {
-      const div = document.createElement('div');
-      div.className = `bubble ${sender}`;
-      div.textContent = msg;
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-    }
+#controls {  
+  margin-top: 10px;  
+  text-align: center;  
+}  
 
-    socket.on('message', msg => appendMessage(msg, 'stranger'));
+button.control {  
+  margin: 0 10px;  
+  padding: 10px 20px;  
+  border-radius: 25px;  
+  background-color: #007bff;  
+  color: white;  
+  border: none;  
+  cursor: pointer;  
+}  
 
-    socket.on('startCall', async () => {
-      peerConnection = new RTCPeerConnection(config);
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-      peerConnection.ontrack = e => remoteVideo.srcObject = e.streams[0];
-      peerConnection.onicecandidate = e => {
-        if (e.candidate) socket.emit('candidate', e.candidate);
-      };
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-      socket.emit('offer', offer);
-    });
+@media (max-width: 768px) {  
+  body {  
+    flex-direction: column;  
+  }  
+  #video-section, #chat-section {  
+    width: 100%;  
+    flex: none;  
+    height: 50vh;  
+  }  
+}
 
-    socket.on('offer', async offer => {
-      peerConnection = new RTCPeerConnection(config);
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-      peerConnection.ontrack = e => remoteVideo.srcObject = e.streams[0];
-      peerConnection.onicecandidate = e => {
-        if (e.candidate) socket.emit('candidate', e.candidate);
-      };
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      socket.emit('answer', answer);
-    });
-
-    socket.on('answer', answer => {
-      peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    });
-
-    socket.on('candidate', candidate => {
-      peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-
-    socket.on('disconnect', () => {
-      if (peerConnection) peerConnection.close();
-      remoteVideo.srcObject = null;
-    });
-  </script>
-</body>
-</html>
+  </style>  
+</head>  
+<body>  
+  <div id="video-section">  
+    <video id="localVideo" autoplay muted playsinline></video>  
+    <video id="remoteVideo" autoplay playsinline></video>  
+    <div id="controls">  
+      <button class="control" id="startBtn">Start Chat</button>  
+      <button class="control" id="nextBtn">Next</button>  
+    </div>  
+  </div>    <div id="chat-section">  
+    <div id="messages"></div>  
+    <div id="message-input">  
+      <input type="text" id="msgBox" placeholder="Say something..." />  
+      <button id="sendBtn">Send</button>  
+    </div>  
+  </div>    <script src="/socket.io/socket.io.js"></script>    <script>  
+    const socket = io();  
+    let localStream;  
+    let peerConnection;  
+    const config = {  
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]  
+    };  
+  
+    const localVideo = document.getElementById('localVideo');  
+    const remoteVideo = document.getElementById('remoteVideo');  
+    const startBtn = document.getElementById('startBtn');  
+    const nextBtn = document.getElementById('nextBtn');  
+    const msgBox = document.getElementById('msgBox');  
+    const sendBtn = document.getElementById('sendBtn');  
+    const messages = document.getElementById('messages');  
+  
+    let isCaller = false;  
+  
+    startBtn.onclick = async () => {  
+      socket.emit('ready');  
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });  
+      localVideo.srcObject = localStream;  
+    };  
+  
+    nextBtn.onclick = () => {  
+      socket.emit('next');  
+      if (peerConnection) peerConnection.close();  
+      remoteVideo.srcObject = null;  
+      messages.innerHTML = '';  
+    };  
+  
+    socket.on('startCall', async () => {  
+      isCaller = true;  
+      peerConnection = createPeerConnection();  
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));  
+      const offer = await peerConnection.createOffer();  
+      await peerConnection.setLocalDescription(offer);  
+      socket.emit('offer', offer);  
+    });  
+  
+    socket.on('offer', async (offer) => {  
+      peerConnection = createPeerConnection();  
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));  
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));  
+      const answer = await peerConnection.createAnswer();  
+      await peerConnection.setLocalDescription(answer);  
+      socket.emit('answer', answer);  
+    });  
+  
+    socket.on('answer', async (answer) => {  
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));  
+    });  
+  
+    socket.on('candidate', candidate => {  
+      peerConnection.addIceCandidate(new RTCIceCandidate(candidate));  
+    });  
+  
+    socket.on('message', data => {  
+      messages.innerHTML += `<div><b>Stranger:</b> ${data}</div>`;  
+      messages.scrollTop = messages.scrollHeight;  
+    });  
+  
+    sendBtn.onclick = () => {  
+      const msg = msgBox.value.trim();  
+      if (msg) {  
+        socket.emit('message', msg);  
+        messages.innerHTML += `<div><b>You:</b> ${msg}</div>`;  
+        msgBox.value = '';  
+        messages.scrollTop = messages.scrollHeight;  
+      }  
+    };  
+  
+    function createPeerConnection() {  
+      const pc = new RTCPeerConnection(config);  
+      pc.onicecandidate = (e) => {  
+        if (e.candidate) {  
+          socket.emit('candidate', e.candidate);  
+        }  
+      };  
+      pc.ontrack = (e) => {  
+        remoteVideo.srcObject = e.streams[0];  
+      };  
+      return pc;  
+    }  
+  </script>  </body>  
+</html> 
