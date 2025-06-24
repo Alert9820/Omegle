@@ -1,1 +1,149 @@
+<!-- index.html --><!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Omegle Clone - Video Chat</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #141e30, #243b55);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      color: white;
+      overflow: hidden;
+    }
+    h1 {
+      margin-bottom: 20px;
+      animation: slideDown 1s ease-in-out;
+    }
+    #videos {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      animation: fadeIn 1s ease-in-out;
+    }
+    video {
+      width: 45vw;
+      max-width: 300px;
+      border-radius: 12px;
+      border: 3px solid #00ffff;
+      background: black;
+    }
+    #controls {
+      margin-top: 20px;
+      animation: slideUp 1s ease-in-out;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 25px;
+      margin: 0 10px;
+      cursor: pointer;
+      background-color: #00c6ff;
+      color: white;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #007eae;
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🔵 Omegle Clone Video Chat</h1>
+  <div id="videos">
+    <video id="localVideo" autoplay muted playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+  <div id="controls">
+    <button id="startBtn">Start Chat</button>
+    <button id="nextBtn">Next</button>
+  </div>  <script src="/socket.io/socket.io.js"></script>  <script>
+    const socket = io();
+    let localStream;
+    let peerConnection;
+    const config = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    };
 
+    const startBtn = document.getElementById('startBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+
+    let isCaller = false;
+
+    startBtn.onclick = async () => {
+      socket.emit('ready');
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localVideo.srcObject = localStream;
+    };
+
+    nextBtn.onclick = () => {
+      socket.emit('next');
+      if (peerConnection) {
+        peerConnection.close();
+      }
+      remoteVideo.srcObject = null;
+    };
+
+    socket.on('startCall', async () => {
+      isCaller = true;
+      peerConnection = createPeerConnection();
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit('offer', offer);
+    });
+
+    socket.on('offer', async (offer) => {
+      peerConnection = createPeerConnection();
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.emit('answer', answer);
+    });
+
+    socket.on('answer', async (answer) => {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    });
+
+    socket.on('candidate', candidate => {
+      peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
+    function createPeerConnection() {
+      const pc = new RTCPeerConnection(config);
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('candidate', event.candidate);
+        }
+      };
+      pc.ontrack = (event) => {
+        remoteVideo.srcObject = event.streams[0];
+      };
+      return pc;
+    }
+  </script></body>
+</html>
