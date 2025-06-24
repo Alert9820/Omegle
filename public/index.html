@@ -208,12 +208,13 @@
     });
 
     socket.on('candidate', candidate => {
-      peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    });
+  peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+});
 
-    socket.on('disconnect', () => {
-      if (peerConnection) peerConnection.close();
-      remoteVideo.srcObject = null;
-    });
+socket.on('partner-disconnected', () => {
+  if (peerConnection) peerConnection.close();
+  remoteVideo.srcObject = null;
+  messages.innerHTML = '';
+});
   </script></body>
   </html>
