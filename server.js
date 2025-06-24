@@ -24,6 +24,7 @@ socket.on('disconnect', () => { console.log('❌ User disconnected:', socket.id)
 
 function disconnectPartner(socket) { const partnerId = partners.get(socket.id); if (partnerId) { const partnerSocket = io.sockets.sockets.get(partnerId); if (partnerSocket) partnerSocket.emit('disconnect'); partners.delete(partnerId); partners.delete(socket.id); } } });
 
-const PORT = process.env.PORT || 3000; server.listen(PORT, () => { console.log(🚀 Server running on http://localhost:${PORT}); });
-
-                                                                  
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log("Server running on http://localhost:" + PORT);
+});
