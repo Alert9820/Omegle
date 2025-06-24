@@ -1,33 +1,20 @@
-<!DOCTYPE html><html lang="en">
+<!-- index.html --><!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sunny's Omegle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: 'Poppins', sans-serif;
-    }
+    * { box-sizing: border-box; font-family: 'Poppins', sans-serif; }
     body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       background: rgba(255,255,255,0.2);
       backdrop-filter: blur(15px);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
+      display: flex; flex-direction: column;
+      height: 100vh; overflow: hidden;
     }
-    .container {
-      display: flex;
-      flex: 1;
-      flex-direction: row;
-      padding: 10px;
-    }
-    .video-area, .chat-area {
-      flex: 1;
-      padding: 10px;
-    }
+    .container { display: flex; flex: 1; flex-direction: row; padding: 10px; }
+    .video-area, .chat-area { flex: 1; padding: 10px; }
     .video-box {
       display: flex;
       justify-content: space-evenly;
@@ -35,51 +22,32 @@
       gap: 10px;
     }
     video {
-      width: 48%;
-      height: 200px;
+      width: 48%; height: 200px;
       border-radius: 15px;
       background: black;
     }
     .chat-box {
-      height: 80%;
-      background: #ffffff30;
-      border-radius: 12px;
-      padding: 10px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      color: #000;
+      height: 80%; background: #ffffff30;
+      border-radius: 12px; padding: 10px;
+      overflow-y: auto; display: flex; flex-direction: column;
+      gap: 5px; color: #000;
     }
-    .chat-input {
-      display: flex;
-      margin-top: 10px;
-    }
+    .chat-input { display: flex; margin-top: 10px; }
     .chat-input input {
-      flex: 1;
-      padding: 10px;
+      flex: 1; padding: 10px;
       border-radius: 8px 0 0 8px;
       border: none;
     }
     .chat-input button {
-      padding: 10px 20px;
-      border: none;
-      background-color: #007bff;
-      color: #fff;
-      border-radius: 0 8px 8px 0;
-      cursor: pointer;
+      padding: 10px 20px; border: none;
+      background-color: #007bff; color: #fff;
+      border-radius: 0 8px 8px 0; cursor: pointer;
     }
-    .controls {
-      text-align: center;
-      margin: 10px 0;
-    }
+    .controls { text-align: center; margin: 10px 0; }
     .controls button {
-      margin: 0 10px;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 25px;
-      cursor: pointer;
-      background: #0f2027;
+      margin: 0 10px; padding: 10px 15px;
+      border: none; border-radius: 25px;
+      cursor: pointer; background: #0f2027;
       color: white;
     }
     .footer {
@@ -89,10 +57,8 @@
       background: rgba(255,255,255,0.2);
     }
     .bubble {
-      background: #f0f0f0;
-      padding: 6px 10px;
-      border-radius: 10px;
-      max-width: 70%;
+      background: #f0f0f0; padding: 6px 10px;
+      border-radius: 10px; max-width: 70%;
     }
     .you { align-self: flex-end; background: #d1e7dd; }
     .stranger { align-self: flex-start; background: #f8d7da; }
@@ -125,8 +91,7 @@
   </div>
   <div class="footer">Made by Sunny • Omegle Clone 2025</div>  <script src="/socket.io/socket.io.js"></script>  <script>
     const socket = io();
-    let localStream;
-    let peerConnection;
+    let localStream, peerConnection;
     let isMicOn = true;
     const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -148,6 +113,7 @@
     nextBtn.onclick = () => {
       socket.emit('next');
       if (peerConnection) peerConnection.close();
+      peerConnection = null;
       remoteVideo.srcObject = null;
       messages.innerHTML = '';
     };
@@ -181,7 +147,9 @@
     socket.on('startCall', async () => {
       peerConnection = new RTCPeerConnection(config);
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-      peerConnection.ontrack = e => remoteVideo.srcObject = e.streams[0];
+      peerConnection.ontrack = e => {
+        if (e.streams && e.streams[0]) remoteVideo.srcObject = e.streams[0];
+      };
       peerConnection.onicecandidate = e => {
         if (e.candidate) socket.emit('candidate', e.candidate);
       };
@@ -193,7 +161,9 @@
     socket.on('offer', async offer => {
       peerConnection = new RTCPeerConnection(config);
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-      peerConnection.ontrack = e => remoteVideo.srcObject = e.streams[0];
+      peerConnection.ontrack = e => {
+        if (e.streams && e.streams[0]) remoteVideo.srcObject = e.streams[0];
+      };
       peerConnection.onicecandidate = e => {
         if (e.candidate) socket.emit('candidate', e.candidate);
       };
@@ -208,13 +178,14 @@
     });
 
     socket.on('candidate', candidate => {
-  peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-});
+      peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    });
 
-socket.on('partner-disconnected', () => {
-  if (peerConnection) peerConnection.close();
-  remoteVideo.srcObject = null;
-  messages.innerHTML = '';
-});
+    socket.on('partner-disconnected', () => {
+      if (peerConnection) peerConnection.close();
+      peerConnection = null;
+      remoteVideo.srcObject = null;
+      messages.innerHTML = '';
+    });
   </script></body>
   </html>
