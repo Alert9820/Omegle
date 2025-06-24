@@ -1,7 +1,22 @@
+// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const { exec } = require('child_process');
+
+// 🛠 Auto-install required packages (only runs once if missing)
+exec('npm install express socket.io', (error, stdout, stderr) => {
+  if (error) {
+    console.error(`Auto-install error: ${error.message}`);
+    return;
+  }
+  if (stderr) {
+    console.error(`Auto-install stderr: ${stderr}`);
+    return;
+  }
+  console.log(`✅ Dependencies installed:\n${stdout}`);
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -49,14 +64,14 @@ io.on('connection', (socket) => {
 
   socket.on('next', () => {
     disconnectPartner(socket);
-    socket.emit('ready');
+    socket.emit('ready'); // Re-enter the queue
   });
 
   socket.on('disconnect', () => {
-    console.log('❌ Disconnected:', socket.id);
+    console.log('❌ User disconnected:', socket.id);
     disconnectPartner(socket);
-    const i = waitingQueue.indexOf(socket);
-    if (i !== -1) waitingQueue.splice(i, 1);
+    const index = waitingQueue.indexOf(socket);
+    if (index !== -1) waitingQueue.splice(index, 1);
   });
 
   function disconnectPartner(socket) {
@@ -72,5 +87,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log("Server running on http://localhost:" + PORT);
 });
