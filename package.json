@@ -1,11 +1,18 @@
 {
-  "name": "video-omegle-clone",
+  "name": "omegle-clone",
   "version": "1.0.0",
-  "description": "A video-based random chat Omegle clone using WebRTC and Socket.IO",
+  "description": "Video + Text Chat Omegle Clone by Sunny",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
+  "keywords": [
+    "omegle",
+    "video chat",
+    "webrtc",
+    "socket.io",
+    "text chat"
+  ],
   "author": "Sunny",
   "license": "MIT",
   "dependencies": {
