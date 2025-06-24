@@ -1,98 +1,127 @@
-<!-- index.html --><!DOCTYPE html><html lang="en">
+<!-- public/index.html --><!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sunny's Omegle</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <title>Omegle Clone - Sunny</title>
   <style>
-    * { box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-    body {
-      margin: 0; padding: 0;
-      background: rgba(255,255,255,0.2);
-      backdrop-filter: blur(15px);
-      display: flex; flex-direction: column;
-      height: 100vh; overflow: hidden;
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
     }
-    .container { display: flex; flex: 1; flex-direction: row; padding: 10px; }
-    .video-area, .chat-area { flex: 1; padding: 10px; }
-    .video-box {
+    body {
+      margin: 0;
+      background: linear-gradient(to right, #1f1c2c, #928dab);
+      color: white;
       display: flex;
-      justify-content: space-evenly;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+    }
+    .video-panel, .chat-panel {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(10px);
+    }
+    .video-container {
+      display: flex;
+      justify-content: space-around;
       flex-wrap: wrap;
-      gap: 10px;
     }
     video {
-      width: 48%; height: 200px;
-      border-radius: 15px;
+      width: 45%;
+      max-height: 240px;
+      border-radius: 12px;
       background: black;
+      border: 2px solid white;
+    }
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    .controls button {
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: none;
+      background: #00c9ff;
+      color: #000;
+      cursor: pointer;
+      font-weight: bold;
     }
     .chat-box {
-      height: 80%; background: #ffffff30;
-      border-radius: 12px; padding: 10px;
-      overflow-y: auto; display: flex; flex-direction: column;
-      gap: 5px; color: #000;
+      flex: 1;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 10px;
+      overflow-y: auto;
+      margin-bottom: 10px;
     }
-    .chat-input { display: flex; margin-top: 10px; }
+    .chat-box div {
+      margin: 5px 0;
+    }
+    .chat-input {
+      display: flex;
+    }
     .chat-input input {
-      flex: 1; padding: 10px;
-      border-radius: 8px 0 0 8px;
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px 0 0 10px;
       border: none;
+      font-size: 16px;
     }
     .chat-input button {
-      padding: 10px 20px; border: none;
-      background-color: #007bff; color: #fff;
-      border-radius: 0 8px 8px 0; cursor: pointer;
+      padding: 10px;
+      border: none;
+      background: #00c9ff;
+      color: #000;
+      border-radius: 0 10px 10px 0;
+      cursor: pointer;
     }
-    .controls { text-align: center; margin: 10px 0; }
-    .controls button {
-      margin: 0 10px; padding: 10px 15px;
-      border: none; border-radius: 25px;
-      cursor: pointer; background: #0f2027;
-      color: white;
-    }
-    .footer {
+    footer {
       text-align: center;
       padding: 10px;
       font-size: 14px;
-      background: rgba(255,255,255,0.2);
+      background: rgba(0, 0, 0, 0.3);
     }
-    .bubble {
-      background: #f0f0f0; padding: 6px 10px;
-      border-radius: 10px; max-width: 70%;
-    }
-    .you { align-self: flex-end; background: #d1e7dd; }
-    .stranger { align-self: flex-start; background: #f8d7da; }
     @media (max-width: 768px) {
-      .container { flex-direction: column; }
-      video { width: 100%; height: 160px; }
+      .main { flex-direction: column; }
+      video { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="video-area">
-      <div class="video-box">
+  <div class="main">
+    <div class="video-panel">
+      <div class="video-container">
         <video id="localVideo" autoplay muted playsinline></video>
         <video id="remoteVideo" autoplay playsinline></video>
       </div>
       <div class="controls">
         <button id="startBtn">Start</button>
         <button id="nextBtn">Next</button>
-        <button id="micBtn">🎙️ Mic On</button>
+        <button id="micBtn">Mic On</button>
       </div>
     </div>
-    <div class="chat-area">
+    <div class="chat-panel">
       <div class="chat-box" id="messages"></div>
       <div class="chat-input">
-        <input type="text" id="msgBox" placeholder="Say something...">
+        <input type="text" id="msgBox" placeholder="Type a message...">
         <button id="sendBtn">Send</button>
       </div>
     </div>
   </div>
-  <div class="footer">Made by Sunny • Omegle Clone 2025</div>  <script src="/socket.io/socket.io.js"></script>  <script>
+  <footer>Made with ❤️ by Sunny - Omegle Clone 2025</footer>  <script src="/socket.io/socket.io.js"></script>  <script>
     const socket = io();
     let localStream, peerConnection;
-    let isMicOn = true;
+    let micOn = true;
     const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     const localVideo = document.getElementById('localVideo');
@@ -113,43 +142,34 @@
     nextBtn.onclick = () => {
       socket.emit('next');
       if (peerConnection) peerConnection.close();
-      peerConnection = null;
       remoteVideo.srcObject = null;
       messages.innerHTML = '';
     };
 
     micBtn.onclick = () => {
       if (!localStream) return;
-      isMicOn = !isMicOn;
-      localStream.getAudioTracks()[0].enabled = isMicOn;
-      micBtn.textContent = isMicOn ? '🎙️ Mic On' : '🔇 Mic Off';
+      micOn = !micOn;
+      localStream.getAudioTracks()[0].enabled = micOn;
+      micBtn.textContent = micOn ? 'Mic On' : 'Mic Off';
     };
 
     sendBtn.onclick = () => {
       const msg = msgBox.value.trim();
       if (msg) {
         socket.emit('message', msg);
-        appendMessage(msg, 'you');
+        messages.innerHTML += `<div><b>You:</b> ${msg}</div>`;
         msgBox.value = '';
       }
     };
 
-    function appendMessage(msg, sender) {
-      const div = document.createElement('div');
-      div.className = `bubble ${sender}`;
-      div.textContent = msg;
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    socket.on('message', msg => appendMessage(msg, 'stranger'));
+    socket.on('message', msg => {
+      messages.innerHTML += `<div><b>Stranger:</b> ${msg}</div>`;
+    });
 
     socket.on('startCall', async () => {
       peerConnection = new RTCPeerConnection(config);
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-      peerConnection.ontrack = e => {
-        if (e.streams && e.streams[0]) remoteVideo.srcObject = e.streams[0];
-      };
+      peerConnection.ontrack = e => remoteVideo.srcObject = e.streams[0];
       peerConnection.onicecandidate = e => {
         if (e.candidate) socket.emit('candidate', e.candidate);
       };
@@ -161,9 +181,7 @@
     socket.on('offer', async offer => {
       peerConnection = new RTCPeerConnection(config);
       localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-      peerConnection.ontrack = e => {
-        if (e.streams && e.streams[0]) remoteVideo.srcObject = e.streams[0];
-      };
+      peerConnection.ontrack = e => remoteVideo.srcObject = e.streams[0];
       peerConnection.onicecandidate = e => {
         if (e.candidate) socket.emit('candidate', e.candidate);
       };
@@ -181,11 +199,9 @@
       peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     });
 
-    socket.on('partner-disconnected', () => {
+    socket.on('disconnect', () => {
       if (peerConnection) peerConnection.close();
-      peerConnection = null;
       remoteVideo.srcObject = null;
-      messages.innerHTML = '';
     });
   </script></body>
-  </html>
+</html>
