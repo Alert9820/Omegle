@@ -3,93 +3,101 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Omegle Clone</title>
+  <title>Omegle Clone - Video + Chat</title>
   <style>
-    * { box-sizing: border-box; font-family: Arial, sans-serif; }
     body {
-      margin: 0; padding: 0;
-      display: flex; flex-direction: column;
-      background: linear-gradient(to right, #283048, #859398);
-      height: 100vh; color: white;
-    }
-    .main {
-      display: flex; flex: 1;
-      flex-direction: row;
-      padding: 10px;
-    }
-    video {
-      width: 100%;
-      max-height: 240px;
-      border-radius: 10px;
-      background: black;
-    }
-    .videos, .chat {
-      flex: 1;
-      padding: 10px;
-    }
-    .video-box {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #1f4037, #99f2c8);
       display: flex;
       flex-direction: column;
+      height: 100vh;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+
+    .videos {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    video {
+      width: 100%;
+      max-width: 300px;
+      border: 2px solid #fff;
+      border-radius: 12px;
+      background: #000;
+    }
+
+    .chat {
+      margin-top: 10px;
+      width: 100%;
+      max-width: 600px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+      padding: 10px;
+      color: white;
+      overflow: auto;
+      height: 150px;
+    }
+
+    .controls {
+      margin-top: 10px;
+      display: flex;
       gap: 10px;
     }
-    .chat-box {
-      height: 70%;
-      background: rgba(255,255,255,0.1);
+
+    input {
+      flex: 1;
       padding: 10px;
-      border-radius: 10px;
-      overflow-y: auto;
-    }
-    .input-area {
-      display: flex;
-      margin-top: 10px;
-    }
-    .input-area input {
-      flex: 1; padding: 10px;
-      border: none; border-radius: 8px 0 0 8px;
-    }
-    .input-area button {
-      padding: 10px;
-      background: #0f2027;
+      border-radius: 5px 0 0 5px;
       border: none;
-      border-radius: 0 8px 8px 0;
-      color: white; cursor: pointer;
     }
-    .controls {
-      text-align: center;
-      margin: 10px;
-    }
-    .controls button {
-      margin: 0 5px;
-      padding: 8px 16px;
+
+    button {
+      padding: 10px 15px;
       background: #007bff;
+      color: white;
       border: none;
-      border-radius: 20px;
-      color: white; cursor: pointer;
+      border-radius: 5px;
+      cursor: pointer;
     }
+
     @media (max-width: 768px) {
-      .main { flex-direction: column; }
-      video { max-height: 200px; }
+      .videos {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
 <body>
   <div class="main">
     <div class="videos">
-      <div class="video-box">
-        <video id="localVideo" autoplay muted playsinline></video>
-        <video id="remoteVideo" autoplay playsinline></video>
-      </div>
-      <div class="controls">
-        <button id="startBtn">Start</button>
-        <button id="nextBtn">Next</button>
-      </div>
+      <video id="localVideo" autoplay muted playsinline></video>
+      <video id="remoteVideo" autoplay playsinline></video>
     </div>
-    <div class="chat">
-      <div class="chat-box" id="messages"></div>
-      <div class="input-area">
-        <input type="text" id="msgBox" placeholder="Type a message..." />
-        <button id="sendBtn">Send</button>
-      </div>
+
+    <div class="controls">
+      <button id="startBtn">Start</button>
+      <button id="nextBtn">Next</button>
+    </div>
+
+    <div class="chat" id="messages"></div>
+
+    <div class="controls">
+      <input type="text" id="msgBox" placeholder="Say something..." />
+      <button id="sendBtn">Send</button>
     </div>
   </div>
 
@@ -98,32 +106,70 @@
     const socket = io();
     let localStream;
     let peerConnection;
-    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    const config = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    };
 
     const localVideo = document.getElementById('localVideo');
     const remoteVideo = document.getElementById('remoteVideo');
-    const startBtn = document.getElementById('startBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const msgBox = document.getElementById('msgBox');
-    const sendBtn = document.getElementById('sendBtn');
     const messages = document.getElementById('messages');
+    const msgBox = document.getElementById('msgBox');
 
-    startBtn.onclick = async () => {
+    document.getElementById('startBtn').onclick = async () => {
+      socket.emit('ready');
       localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localVideo.srcObject = localStream;
-      socket.emit('ready');
     };
 
-    nextBtn.onclick = () => {
+    document.getElementById('nextBtn').onclick = () => {
       socket.emit('next');
       if (peerConnection) peerConnection.close();
       remoteVideo.srcObject = null;
       messages.innerHTML = '';
     };
 
+    document.getElementById('sendBtn').onclick = () => {
+      const msg = msgBox.value.trim();
+      if (msg) {
+        appendMessage("You", msg);
+        socket.emit('message', msg);
+        msgBox.value = '';
+      }
+    };
+
+    socket.on('message', msg => appendMessage("Stranger", msg));
+
+    function appendMessage(sender, text) {
+      messages.innerHTML += `<div><strong>${sender}:</strong> ${text}</div>`;
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function createPeerConnection() {
+      const pc = new RTCPeerConnection(config);
+
+      // ✅ Attach event handler first
+      pc.ontrack = (event) => {
+        const stream = event.streams[0];
+        if (stream) {
+          remoteVideo.srcObject = stream;
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('candidate', event.candidate);
+        }
+      };
+
+      return pc;
+    }
+
     socket.on('startCall', async () => {
       peerConnection = createPeerConnection();
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
       socket.emit('offer', offer);
@@ -131,51 +177,28 @@
 
     socket.on('offer', async (offer) => {
       peerConnection = createPeerConnection();
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
       await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
       socket.emit('answer', answer);
     });
 
-    socket.on('answer', (answer) => {
-      peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+    socket.on('answer', async (answer) => {
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
     });
 
-    socket.on('candidate', (candidate) => {
+    socket.on('candidate', candidate => {
       peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     });
 
-    socket.on('message', (msg) => {
-      messages.innerHTML += `<div><b>Stranger:</b> ${msg}</div>`;
-      messages.scrollTop = messages.scrollHeight;
-    });
-
-    sendBtn.onclick = () => {
-      const msg = msgBox.value.trim();
-      if (msg) {
-        socket.emit('message', msg);
-        messages.innerHTML += `<div><b>You:</b> ${msg}</div>`;
-        msgBox.value = '';
-        messages.scrollTop = messages.scrollHeight;
-      }
-    };
-
-    socket.on('partner-disconnected', () => {
+    socket.on('disconnect', () => {
       if (peerConnection) peerConnection.close();
       remoteVideo.srcObject = null;
+      messages.innerHTML = '';
     });
-
-    function createPeerConnection() {
-      const pc = new RTCPeerConnection(config);
-      pc.onicecandidate = (e) => {
-        if (e.candidate) socket.emit('candidate', e.candidate);
-      };
-      pc.ontrack = (e) => {
-        remoteVideo.srcObject = e.streams[0];
-      };
-      return pc;
-    }
   </script>
 </body>
 </html>
