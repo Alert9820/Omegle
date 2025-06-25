@@ -1,50 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Omegle Clone</title>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Omegle Clone – Stable Video</title>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: linear-gradient(to right, #1c1c1c, #4b6cb7);
-      font-family: Arial, sans-serif;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    video {
-      width: 90%;
-      max-width: 400px;
-      margin: 10px;
-      background: black;
-      border-radius: 10px;
-    }
-    #chat {
-      background: rgba(255,255,255,0.1);
-      border-radius: 10px;
-      padding: 10px;
-      width: 90%;
-      max-width: 400px;
-      height: 150px;
-      overflow-y: auto;
-      margin-top: 10px;
-    }
-    input, button {
-      padding: 10px;
-      margin: 5px;
-      border-radius: 8px;
-      border: none;
-    }
-    #buttons {
-      margin: 10px;
-    }
+    body { margin:0; background:#2c3e50; display:flex; flex-direction:column; align-items:center; color:white; }
+    video { width:45%; max-width:300px; border-radius:8px; background:black; margin:10px; }
+    #buttons, #chat { margin:10px; }
+    input, button { padding:8px; margin:2px; border:none; border-radius:4px; }
+    #chat { height:150px; width:90%; max-width:400px; overflow-y:auto; background:rgba(255,255,255,0.1); }
   </style>
 </head>
 <body>
-  <h2>Omegle Clone</h2>
+  <h2>Stable Omegle Clone</h2>
   <video id="localVideo" autoplay muted playsinline></video>
   <video id="remoteVideo" autoplay playsinline></video>
 
@@ -54,89 +21,88 @@
   </div>
 
   <div id="chat"></div>
-  <input id="msgBox" placeholder="Message..." />
+  <input id="msgBox" placeholder="Type your message"/>
   <button id="sendBtn">Send</button>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    let peer;
-    let localStream;
-    const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-    const localVideo = document.getElementById('localVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
-    const msgBox = document.getElementById('msgBox');
-    const chat = document.getElementById('chat');
+    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    let pc, localStream;
+    const lv = document.getElementById('localVideo'),
+          rv = document.getElementById('remoteVideo'),
+          chat = document.getElementById('chat'),
+          msgBox = document.getElementById('msgBox');
 
     document.getElementById('startBtn').onclick = async () => {
       localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localVideo.srcObject = localStream;
+      lv.srcObject = localStream;
       socket.emit('ready');
     };
 
     document.getElementById('nextBtn').onclick = () => {
       socket.emit('next');
-      if (peer) peer.close();
-      remoteVideo.srcObject = null;
+      pc?.close();
+      rv.srcObject = null;
       chat.innerHTML = '';
     };
 
     document.getElementById('sendBtn').onclick = () => {
       const msg = msgBox.value.trim();
-      if (msg) {
-        socket.emit('message', msg);
-        chat.innerHTML += `<div><b>You:</b> ${msg}</div>`;
-        msgBox.value = '';
-      }
+      if (!msg) return;
+      chat.innerHTML += `<div><b>You:</b> ${msg}</div>`;
+      socket.emit('message', msg);
+      msgBox.value = '';
     };
 
     socket.on('message', msg => {
       chat.innerHTML += `<div><b>Stranger:</b> ${msg}</div>`;
+      chat.scrollTop = chat.scrollHeight;
     });
 
     function createPeer() {
-      peer = new RTCPeerConnection(config);
-      localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
-      peer.onicecandidate = e => {
-        if (e.candidate) socket.emit('candidate', e.candidate);
-      };
-      peer.ontrack = e => {
-        if (e.streams.length > 0) remoteVideo.srcObject = e.streams[0];
-      };
-      peer.onconnectionstatechange = () => {
-        if (peer.connectionState === 'disconnected' || peer.connectionState === 'failed') {
-          remoteVideo.srcObject = null;
+      pc = new RTCPeerConnection(config);
+
+      pc.onicecandidate = e => e.candidate && socket.emit('candidate', e.candidate);
+
+      pc.ontrack = e => rv.srcObject = e.streams[0];
+
+      pc.onconnectionstatechange = async () => {
+        const s = pc.connectionState;
+        console.log('Connection state:', s);
+        if (s === 'failed' || s === 'disconnected') {
+          console.log('Connection lost – restarting ICE');
+          try {
+            await pc.restartIce();
+          } catch (err) { console.warn('ICE restart failed', err); }
         }
       };
-      return peer;
+
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      return pc;
     }
 
-    socket.on('startCall', async () => {
-      peer = createPeer();
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
+    async function handleStart() {
+      pc = createPeer();
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
       socket.emit('offer', offer);
-    });
+    }
 
-    socket.on('offer', async (offer) => {
-      peer = createPeer();
-      await peer.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await peer.createAnswer();
-      await peer.setLocalDescription(answer);
+    socket.on('startCall', handleStart);
+    socket.on('offer', async offer => {
+      pc = createPeer();
+      await pc.setRemoteDescription(offer);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
       socket.emit('answer', answer);
     });
 
-    socket.on('answer', async (answer) => {
-      await peer.setRemoteDescription(new RTCSessionDescription(answer));
-    });
-
-    socket.on('candidate', (candidate) => {
-      peer.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-
-    socket.on('disconnect', () => {
-      if (peer) peer.close();
-      remoteVideo.srcObject = null;
+    socket.on('answer', answer => pc.setRemoteDescription(answer));
+    socket.on('candidate', c => pc.addIceCandidate(c));
+    socket.on('partner-disconnected', () => {
+      pc.close();
+      rv.srcObject = null;
     });
   </script>
 </body>
