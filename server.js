@@ -1,74 +1,45 @@
-const express = require('express');
-const http = require('http');
+const express = require('express'), http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const app = express(), server = http.createServer(app), io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
+const queue = [], partners = new Map();
 
-const waitingQueue = [];
-const partners = new Map();
+io.on('connection', s => {
+  console.log('New:', s.id);
 
-io.on('connection', socket => {
-  console.log("New connection:", socket.id);
-
-  socket.on('ready', () => {
-    if (waitingQueue.length > 0) {
-      const peer = waitingQueue.shift();
-      partners.set(socket.id, peer.id);
-      partners.set(peer.id, socket.id);
-      socket.emit('startCall');
-      peer.emit('startCall');
-    } else {
-      waitingQueue.push(socket);
-    }
+  s.on('ready', () => {
+    if (queue.length) {
+      const p = queue.shift();
+      partners.set(s.id, p.id);
+      partners.set(p.id, s.id);
+      s.emit('startCall');
+      p.emit('startCall');
+    } else queue.push(s);
   });
 
-  socket.on('offer', offer => {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) io.to(partnerId).emit('offer', offer);
+  ['offer','answer','candidate','message'].forEach(ev =>
+    s.on(ev, data => {
+      const pid = partners.get(s.id);
+      if (pid) io.to(pid).emit(ev, data);
+    })
+  );
+
+  s.on('next', () => {
+    const pid = partners.get(s.id);
+    if (pid) io.to(pid).emit('partner-disconnected');
+    partners.delete(s.id);
+    partners.delete(pid);
+    s.emit('ready');
   });
 
-  socket.on('answer', answer => {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) io.to(partnerId).emit('answer', answer);
+  s.on('disconnect', () => {
+    const pid = partners.get(s.id);
+    if (pid) io.to(pid).emit('partner-disconnected');
+    partners.delete(s.id);
+    partners.delete(pid);
   });
-
-  socket.on('candidate', candidate => {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) io.to(partnerId).emit('candidate', candidate);
-  });
-
-  socket.on('message', msg => {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) io.to(partnerId).emit('message', msg);
-  });
-
-  socket.on('next', () => {
-    disconnect(socket);
-    socket.emit('ready');
-  });
-
-  socket.on('disconnect', () => {
-    console.log("Disconnected:", socket.id);
-    disconnect(socket);
-  });
-
-  function disconnect(socket) {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) {
-      const partner = io.sockets.sockets.get(partnerId);
-      if (partner) partner.emit('disconnect');
-      partners.delete(partnerId);
-      partners.delete(socket.id);
-    }
-  }
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+server.listen(3000, () => console.log('Running on port 3000'));
